@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Test Client</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    #messages { height: 300px; border: 1px solid #ccc; overflow-y: scroll; margin-bottom: 10px; padding: 10px; }
+    #message-form { display: flex; }
+    #message-input { flex-grow: 1; padding: 8px; margin-right: 10px; }
+    .message { margin-bottom: 8px; }
+    .server { color: #888; }
+    .timestamp { font-size: 0.8em; color: #999; margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <h1>WebSocket Test Client</h1>
+  <div id="connection-status">Disconnected</div>
+  <div id="messages"></div>
+  <form id="message-form">
+    <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const connectionStatus = document.getElementById('connection-status');
+    
+    // Connect to WebSocket server
+    const socket = new WebSocket('ws://localhost:3000');
+    
+    // Add this right after the variable declarations at the top of your script
+    const clientName = randomName();
+    
+    socket.onopen = () => {
+      connectionStatus.textContent = 'Connected';
+      connectionStatus.style.color = 'green';
+      addMessage('System', 'Connected to server', true);
+    };
+    
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      // Handle both message formats (from MessageClass and from Mongoose)
+      const sender = message.sender || message.userName || 'Unknown';
+      const content = message.content || message.message || '';
+      addMessage(sender, content, sender === 'server');
+    };
+    
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      addMessage('System', 'Error connecting to server', true);
+    };
+    
+    socket.onclose = () => {
+      connectionStatus.textContent = 'Disconnected';
+      connectionStatus.style.color = 'red';
+      addMessage('System', 'Disconnected from server', true);
+    };
+    
+    // Add this function before the form submission handler
+    function randomName() {
+      const adjectives = [
+        'Happy', 'Clever', 'Brave', 'Calm', 'Eager', 
+        'Gentle', 'Jolly', 'Kind', 'Lively', 'Polite',
+        'Proud', 'Silly', 'Witty', 'Fancy', 'Friendly'
+      ];
+      
+      const animals = [
+        'Panda', 'Tiger', 'Dolphin', 'Eagle', 'Fox',
+        'Koala', 'Lion', 'Owl', 'Penguin', 'Wolf',
+        'Zebra', 'Bear', 'Rabbit', 'Turtle', 'Elephant'
+      ];
+      
+      const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+      
+      return `${randomAdjective}${randomAnimal}`;
+    }
+    
+    // Handle form submission
+    messageForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const content = messageInput.value.trim();
+      if (content && socket.readyState === WebSocket.OPEN) {
+        const message = {
+          sender: clientName,
+          content: content
+        };
+        socket.send(JSON.stringify(message));
+        messageInput.value = '';
+      }
+    });
+    
+    // Add message to the messages div
+    function addMessage(sender, content, isServer = false) {
+      const messageElement = document.createElement('div');
+      messageElement.className = `message ${isServer ? 'server' : ''}`;
+      
+      const timestamp = new Date().toLocaleTimeString();
+      
+      if (isServer) {
+        // For server messages, especially join/leave notifications
+        if (content.includes('joined') || content.includes('left')) {
+          messageElement.style.fontStyle = 'italic';
+          messageElement.style.color = content.includes('joined') ? '#4CAF50' : '#F44336';
+        }
+      }
+      
+      messageElement.innerHTML = `<strong>${sender}:</strong> ${content} <span class="timestamp">${timestamp}</span>`;
+      
+      messagesDiv.appendChild(messageElement);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+  </script>
+</body>
+</html> 
