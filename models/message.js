@@ -10,22 +10,9 @@ const messageSchema = mongoose.Schema(
       type: String,
       required: true
     },
-    duration: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
-    caloriesBurned: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
     date: {
       type: Date,
       default: Date.now,
-    },
-    notes: {
-      type: String,
     },
   },
   {
@@ -33,6 +20,6 @@ const messageSchema = mongoose.Schema(
   }
 );
 
-const Workout = mongoose.model('Message', messageSchema);
+const Message = mongoose.model('Message', messageSchema);
 
-module.exports = Workout; 
+module.exports = Message; 
