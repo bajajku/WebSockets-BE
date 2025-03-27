@@ -25,7 +25,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/websocket
   .catch(err => console.error('MongoDB connection error:', err));
 
 // WebSocket server events
-wss.on('connection', (ws, req) => {
+wss.on('connection', async (ws, req) => {
   console.log('Client connected');
   
   // Generate a unique ID for this client
@@ -35,10 +35,32 @@ wss.on('connection', (ws, req) => {
   let clientName = `Guest-${clientId}`;
   clients.set(ws, clientName);
   
-  // Send welcome message using MessageClass for in-memory messages
-  const welcomeMessage = new MessageClass('server', 'Welcome to the WebSocket server!');
-  ws.send(JSON.stringify(welcomeMessage));
-  
+  try {
+    // Load last 50 messages from MongoDB
+    const lastMessages = await Message.find()
+      .sort({ date: -1 })
+      .limit(50)
+      .lean();
+
+    // Send welcome message
+    const welcomeMessage = new MessageClass('server', 'Welcome to the WebSocket server!');
+    ws.send(JSON.stringify(welcomeMessage));
+    
+    // Send chat history to the new client
+    const historyMessage = new MessageClass('server', 'Loading chat history...');
+    ws.send(JSON.stringify(historyMessage));
+    
+    // Send messages in chronological order (oldest first)
+    lastMessages.reverse().forEach(msg => {
+      const historicalMessage = new MessageClass(msg.userName, msg.message);
+      ws.send(JSON.stringify(historicalMessage));
+    });
+  } catch (error) {
+    console.error('Error loading chat history:', error);
+    const errorMessage = new MessageClass('server', 'Error loading chat history');
+    ws.send(JSON.stringify(errorMessage));
+  }
+
   // Announce immediately that a new user has joined
   broadcastMessage(new MessageClass('server', `${clientName} has joined the chat`));
   
